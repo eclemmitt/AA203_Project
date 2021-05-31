@@ -35,7 +35,6 @@ City[:,c4] = 0
 
 fig, ax = plt.subplots()
 im = ax.imshow(City)
-#plt.gca().invert_yaxis()
 plt.colorbar(im)
 plt.ylim(-0.5,19.5)
 plt.xlim(-0.5,19.5)
@@ -77,8 +76,8 @@ def start_delivery_locations():
   return start_row,start_column,start_height,\
          delivery_row,delivery_column,delivery_height
          
-#compares current height to current building, works as a terminal state function
-def current_height_reward(height,row_index,column_index):
+#compares drone height to building height, works as a terminal state function
+def height_reward(height,row_index,column_index):
     if height >= 400 or height <= 100 or height <= City[row_index,column_index]:
         #rewards[row_index,column_index] = -100
         #return False
@@ -88,31 +87,43 @@ def current_height_reward(height,row_index,column_index):
         #return True
         return -1
 
+#factors in effect of wind 
 def wind(height,row_index,column_index,ep):
     #right = 0, left = 1, up = 2, down = 3, no wind = 4
     direction = np.random.randint(5)
-    if direction == 0: #right
-        if current_height_reward(height,row_index,column_index-1) == -100 \
+    if direction == 0: #wind coming from right
+        #wind blows drone into building
+        if height_reward(height,row_index,column_index-1) == -100 \
             or column_index == 0:
             return False,3 #'L'
+        #adjacent building blocks wind 
+        elif height < City[row_index,column_index+1]:
+            return True, new_action(row_index,column_index,ep)
+        #wind blows drone in direction of wind without hitting building
         else:
             return True, 3 #'L'
-    if direction == 1: #left
-        if current_height_reward(height,row_index,column_index+1) == -100 \
+    if direction == 1: #wind coming from left
+        if height_reward(height,row_index,column_index+1) == -100 \
             or column_index == 19:
             return False, 2 #'R'
+        elif height < City[row_index,column_index-1]:
+            return True, new_action(row_index,column_index,ep)
         else:
             return True, 2 #'R'
-    if direction == 2: #up
-        if current_height_reward(height,row_index-1,column_index) == -100 \
+    if direction == 2: #wind coming from above/up
+        if height_reward(height,row_index-1,column_index) == -100 \
             or row_index == 0:
             return False, 5 #'D'
+        elif height < City[row_index+1,column_index]:
+            return True, new_action(row_index,column_index,ep)
         else:
             return True, 5 #'D'
-    if direction == 3: #down
-        if current_height_reward(height,row_index+1,column_index) == -100 \
+    if direction == 3: #wind coming from below/down
+        if height_reward(height,row_index+1,column_index) == -100 \
             or row_index == 19:
             return False, 4 #'U'
+        elif height < City[row_index-1,column_index]:
+            return True, new_action(row_index,column_index,ep)
         else:
             return True, 4 #'U'
     if direction == 4: #no wind
@@ -226,7 +237,7 @@ def new_location(height,row_index,column_index,action):
 #getting start and delivery locations
 s_r,s_c,s_h,d_r,d_c,d_h = start_delivery_locations() 
 
-plt.scatter(s_r, s_c, s=10, c='red', marker='o')
+plt.scatter(s_r, s_c, s=20, c='red', marker='o')
 plt.scatter(d_r, d_c, s=50, c='red', marker='x')
 plt.show()
 
@@ -238,7 +249,7 @@ rewards[d_r, d_c] = 100 #successful delivery reward
 rewards = np.flip(rewards.T,0)
 
 ### Q-LEARNING ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ep = 1 #epsilon  
+ep = 1 #epsilon - decrease for exploration  
 gamma = 0.99 #discount factor 
 alpha = 0.01 #learning rate
 #episodes = #number of episodes
