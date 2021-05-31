@@ -79,13 +79,13 @@ def start_delivery_locations():
 #compares drone height to building height, works as a terminal state function
 def height_reward(row_index,column_index,height,time):
     if height == d_h and row_index == d_r and column_index == d_c: # delivery reward
-        return 1000
+        return 200
     elif row_index == s_r and column_index == s_c and \
         height >= s_h and height <= 400 and time <= 5:
         return -1
     elif (row_index == d_r and column_index == d_c and \
         (height == 100 and height >= City[row_index,column_index])): # hovering over start or end location
-        return 1000
+        return 200
     elif height >= 400 or height <= 100 or height <= City[row_index,column_index]:
         #rewards[row_index,column_index] = -100
         #return False
@@ -140,7 +140,8 @@ def wind(row_index,column_index,height,ep):
 #next action using epsilon greedy
 def new_action(row_index,column_index,height_index,ep):
   if np.random.random() < ep:
-    return np.argmax(Q[row_index,column_index,height_index]) #standard Q-learning
+    return np.random.choice(np.where(Q==np.max(Q[row_index,column_index,height_index]))[3])
+    #return np.argmax(Q[row_index,column_index,height_index]) #standard Q-learning
   else: 
     return np.random.randint(actions) #exploration 
 
@@ -244,7 +245,7 @@ s_r,s_c,s_h,d_r,d_c,d_h = start_delivery_locations()
  
 # For testing:
 s_r,s_c,s_h = 10,11,City[10,11]
-d_r,d_c,d_h = 9,13,City[9,13]
+d_r,d_c,d_h = 9,17,City[9,17]
 
 plt.scatter(s_c, s_r, s=20, c='red', marker='o')
 plt.scatter(d_c, d_r, s=50, c='red', marker='x')
@@ -260,15 +261,15 @@ rewards = np.flip(rewards.T,0)
 
 ### Q-LEARNING ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ep = 0.8 #epsilon - decrease for exploration  
-gamma = 0.95 #discount factor 
+gamma = 0.99 #discount factor 
 alpha = 0.05 #learning rate
-episodes = 50000
+episodes = 100000
 
 for i in range(episodes):
     print(i)
     row_index,column_index,height = s_r,s_c,s_h
     time = 0
-    while not terminalState(row_index,column_index,height,time) and time < 100:
+    while not terminalState(row_index,column_index,height,time) and time < 50:
         height_index = int(np.where(building_heights == height)[0])
         action = new_action(row_index,column_index,height_index,ep)
         nextRow,nextCol,nextHeight = new_location(row_index,column_index,height,action)
@@ -292,7 +293,7 @@ path.append(np.array([s_r,s_c,s_h]))
 row_index,column_index,height = s_r,s_c,s_h
 time = 0
 if np.max(Q) != 0:
-    while not terminalState(row_index,column_index,height,time) and time < 1000:
+    while not terminalState(row_index,column_index,height,time) and time < 50:
         height_index = int(np.where(building_heights == height)[0])
         action = new_action(row_index,column_index,height_index,1)
         nextRow,nextCol,nextHeight = new_location(row_index,column_index,height,action)
