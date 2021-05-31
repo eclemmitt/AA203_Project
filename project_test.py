@@ -48,7 +48,8 @@ plt.xticks(np.arange(0,20,1))
 #actions correspond to 0 through 25, respectively 
 
 Actions = ['F','B','R','L','U','D','FR','FL','FU','FD','BR','BL','BU','BD',
-           'RU','RD','LU','LD','FRU','FRD','FLU','FLD','BRU','BRD','BLU','BLD']
+            'RU','RD','LU','LD','FRU','FRD','FLU','FLD','BRU','BRD','BLU','BLD']
+# Actions = ['F','B','R','L','U','D']
 
 ### FUNCTIONS ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #gives random start location and delivery location with the elevation
@@ -77,15 +78,17 @@ def start_delivery_locations():
          delivery_row,delivery_column,delivery_height
          
 #compares drone height to building height, works as a terminal state function
-def height_reward(row_index,column_index,height,time):
-    if height == d_h and row_index == d_r and column_index == d_c: # delivery reward
-        return 200
+def height_reward(row_index,column_index,height,time,path):
+    if any((np.array([row_index,column_index,height]) == x).all() for x in path):
+        return -100
+    elif height == d_h and row_index == d_r and column_index == d_c: # delivery reward
+        return 100
     elif row_index == s_r and column_index == s_c and \
         height >= s_h and height <= 400 and time <= 5:
         return -1
     elif (row_index == d_r and column_index == d_c and \
         (height == 100 and height >= City[row_index,column_index])): # hovering over start or end location
-        return 200
+        return 100
     elif height >= 400 or height <= 100 or height <= City[row_index,column_index]:
         #rewards[row_index,column_index] = -100
         #return False
@@ -100,42 +103,32 @@ def wind(row_index,column_index,height,ep):
     #right = 0, left = 1, up = 2, down = 3, no wind = 4
     direction = np.random.randint(5)
     if direction == 0: #wind coming from right
-        #wind blows drone into building
-        if height_reward(row_index,column_index-1,height) == -100 \
-            or column_index == 0:
-            return False,3 #'L'
+        if column_index == n-1:
+            return True, 3
         #adjacent building blocks wind 
-        elif height < City[row_index,column_index+1]:
-            return True, new_action(row_index,column_index,height,ep)
-        #wind blows drone in direction of wind without hitting building
+        elif height < City[row_index,column_index+1] or column_index == 0:
+            return False, new_action(row_index,column_index,height,ep)
+        #wind blows drone in direction of wind
         else:
             return True, 3 #'L'
     if direction == 1: #wind coming from left
-        if height_reward(row_index,column_index+1,height) == -100 \
-            or column_index == 19:
-            return False, 2 #'R'
-        elif height < City[row_index,column_index-1]:
-            return True, new_action(row_index,column_index,height,ep)
+        if column_index == 0:
+            return True, 2
+        if height < City[row_index,column_index-1] or column_index == n-1:
+            return False, new_action(row_index,column_index,height,ep)
         else:
             return True, 2 #'R'
     if direction == 2: #wind coming from above/up
-        if height_reward(row_index-1,column_index,height) == -100 \
-            or row_index == 0:
-            return False, 5 #'D'
-        elif height < City[row_index+1,column_index]:
-            return True, new_action(row_index,column_index,height,ep)
-        else:
-            return True, 5 #'D'
+        # you can't block wind from above
+        return True, 5 #'D'
     if direction == 3: #wind coming from below/down
-        if height_reward(row_index+1,column_index,height) == -100 \
-            or row_index == 19:
-            return False, 4 #'U'
-        elif height < City[row_index-1,column_index]:
-            return True, new_action(row_index,column_index,height,ep)
+        # building below blocks updraft
+        if height - City[row_index,column_index] <= 50:
+            return False, new_action(row_index,column_index,height,ep)
         else:
             return True, 4 #'U'
     if direction == 4: #no wind
-        return True, new_action(row_index,column_index,height,ep)
+        return False, new_action(row_index,column_index,height,ep)
 
 #next action using epsilon greedy
 def new_action(row_index,column_index,height_index,ep):
@@ -233,19 +226,29 @@ def new_location(row_index,column_index,height,action):
       new_height -= 50
   return new_row_index, new_column_index, new_height
   
-def terminalState(row_index,column_index,height,time):
-    if height_reward(row_index,column_index,height,time) == -1:
+def terminalState(row_index,column_index,height,time,path):
+    if height_reward(row_index,column_index,height,time,path) == -1:
         return False
     else:
         return True
+    
+def removearray(L,arr):
+    ind = 0
+    size = len(L)
+    while ind != size and not np.array_equal(L[ind],arr):
+        ind += 1
+    if ind != size:
+        L.pop(ind)
+    # else:
+    #     raise ValueError('array not found in list.')
 
 #Plotting start and end points     
 #getting start and delivery locations
 s_r,s_c,s_h,d_r,d_c,d_h = start_delivery_locations()
  
 # For testing:
-s_r,s_c,s_h = 10,11,City[10,11]
-d_r,d_c,d_h = 9,17,City[9,17]
+s_r,s_c,s_h = 11,10,City[11,10]
+d_r,d_c,d_h = 6,13,City[6,13]
 
 plt.scatter(s_c, s_r, s=20, c='red', marker='o')
 plt.scatter(d_c, d_r, s=50, c='red', marker='x')
@@ -254,28 +257,42 @@ plt.show()
 
 ### REWARDS ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #rewards for each state
-rewards = -np.ones((n,n)) #set penalty to -1 by default
-rewards[d_r, d_c] = 100 #successful delivery reward
+# rewards = -np.ones((n,n)) #set penalty to -1 by default
+# rewards[d_r, d_c] = 100 #successful delivery reward
 
-rewards = np.flip(rewards.T,0)
+# rewards = np.flip(rewards.T,0)
 
 ### Q-LEARNING ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ep = 0.8 #epsilon - decrease for exploration  
 gamma = 0.99 #discount factor 
 alpha = 0.05 #learning rate
-episodes = 100000
+episodes = 20000
+windy = True # enable wind
+blown = False # initialize windblown value
 
 for i in range(episodes):
     print(i)
     row_index,column_index,height = s_r,s_c,s_h
     time = 0
-    while not terminalState(row_index,column_index,height,time) and time < 50:
+    path = []
+    while not terminalState(row_index,column_index,height,time,path) and time < 50:
+        path.append(np.array([row_index,column_index,height]))
         height_index = int(np.where(building_heights == height)[0])
-        action = new_action(row_index,column_index,height_index,ep)
+        if windy:
+            blown,action = wind(row_index,column_index,height_index,ep) # windy
+        else:
+            action = new_action(row_index,column_index,height_index,ep) # no wind
         nextRow,nextCol,nextHeight = new_location(row_index,column_index,height,action)
-        reward = height_reward(nextRow,nextCol,nextHeight,time)
+        if blown == True and \
+            any((np.array([nextRow,nextCol,nextHeight]) == x).all() for x in path):
+                # Remove value drone was blown to from list
+                removearray(path,np.array([nextRow,nextCol,nextHeight]))
+                # Remove last value from list (in case drone wants to return)
+                removearray(path,np.array([row_index,column_index,height]))
+        reward = height_reward(nextRow,nextCol,nextHeight,time,path)
         oldQ = Q[row_index,column_index,height_index,action]
-        TD = reward + gamma * max(Q[row_index,column_index,height_index,:]) - oldQ
+        nextHeight_index = int(np.where(building_heights == nextHeight)[0])
+        TD = reward + gamma * max(Q[nextRow,nextCol,nextHeight_index,:]) - oldQ
         newQ = oldQ + alpha * TD
         Q[row_index,column_index,height_index,action] = newQ
         row_index,column_index,height = nextRow,nextCol,nextHeight
@@ -287,20 +304,61 @@ for i in range(n):
         for k in range(11):
             policy[i,j,k] = np.argmax(Q[i,j,k,:])
 
+#%% Plot City
+ax= plt.axes(projection='3d')
+plotCity(ax,City)
+
 #%% Run simulation
-path = []
-path.append(np.array([s_r,s_c,s_h]))
-row_index,column_index,height = s_r,s_c,s_h
-time = 0
-if np.max(Q) != 0:
-    while not terminalState(row_index,column_index,height,time) and time < 50:
+if windy:
+    ax = plt.axes(projection='3d')
+    for i in range(10): # try 10 paths
+        path = []
+        row_index,column_index,height = s_r,s_c,s_h
+        time = 0
+        while not terminalState(row_index,column_index,height,time,path) and time < 50:
+            path.append(np.array([row_index,column_index,height]))
+            height_index = int(np.where(building_heights == height)[0])
+            action = new_action(row_index,column_index,height_index,1)
+            nextRow,nextCol,nextHeight = new_location(row_index,column_index,height,action)
+            row_index,column_index,height = nextRow,nextCol,nextHeight
+            time += 1
+        path.append(np.array([row_index,column_index,height]))
+        x = np.zeros(len(path))
+        y = np.zeros(len(path))
+        z = np.zeros(len(path))
+        for i in range(len(path)):
+            x[i] = path[i][0]
+            y[i] = path[i][1]
+            z[i] = path[i][2]
+        ax.plot3D(x[:], y[:], z[:], 'red')
+    ax.scatter3D(s_r,s_c,s_h,'o')
+    ax.scatter3D(d_r,d_c,d_h,'o')
+else:
+    path = []
+    row_index,column_index,height = s_r,s_c,s_h
+    time = 0
+    while not terminalState(row_index,column_index,height,time,path) and time < 50:
+        path.append(np.array([row_index,column_index,height]))
         height_index = int(np.where(building_heights == height)[0])
         action = new_action(row_index,column_index,height_index,1)
         nextRow,nextCol,nextHeight = new_location(row_index,column_index,height,action)
-        path.append([nextRow,nextCol,nextHeight])
         row_index,column_index,height = nextRow,nextCol,nextHeight
         time += 1
+    path.append(np.array([row_index,column_index,height]))
+    x = np.zeros(len(path))
+    y = np.zeros(len(path))
+    z = np.zeros(len(path))
+    for i in range(len(path)):
+        x[i] = path[i][0]
+        y[i] = path[i][1]
+        z[i] = path[i][2]
+    
+    ax = plt.axes(projection='3d')
+    ax.plot3D(x, y, z, 'red')
+    ax.scatter3D(s_r,s_c,s_h,'o')
+    ax.scatter3D(d_r,d_c,d_h,'o')
 
+    
 #%%
 # x = np.array(range(n))
 # y = np.array(range(n))

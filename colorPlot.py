@@ -55,7 +55,38 @@ def plotMatrix(ax, x, y, z, data, cmap="jet", cax=None, alpha=0.1):
     #     # set the colorbar transparent as well
     #     cbar.solids.set(alpha=alpha)              
 
+def plotCity(ax,City):
+    for i in range(len(City[:,1])):
+        for j in range(len(City[1,:])):
+            plotBuildingAt(pos=(i, j, City[i,j]/2), alpha=1,  ax=ax)
+    
+def plotBuildingAt(pos=(0,0,0), alpha=0.1, ax=None):
+    # Plotting N building elements at position pos
+    if ax !=None:
+        X, Y, Z = building_data( (pos[0],pos[1],pos[2]), (1,1,pos[2]*2) )
+        ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color="b", rstride=1, cstride=1, alpha=alpha)
 
+def building_data(center, size):
+    # code taken from
+    # http://stackoverflow.com/questions/30715083/python-plotting-a-wireframe-3d-cuboid?noredirect=1&lq=1
+    # suppose axis direction: x: to left; y: to inside; z: to upper
+    # get the (left, outside, bottom) point
+    o = [a - b / 2 for a, b in zip(center, size)]
+    # get the length, width, and height
+    l, w, h = size
+    x = [[o[0], o[0] + l, o[0] + l, o[0], o[0]],  # x coordinate of points in bottom surface
+         [o[0], o[0] + l, o[0] + l, o[0], o[0]],  # x coordinate of points in upper surface
+         [o[0], o[0] + l, o[0] + l, o[0], o[0]],  # x coordinate of points in outside surface
+         [o[0], o[0] + l, o[0] + l, o[0], o[0]]]  # x coordinate of points in inside surface
+    y = [[o[1], o[1], o[1] + w, o[1] + w, o[1]],  # y coordinate of points in bottom surface
+         [o[1], o[1], o[1] + w, o[1] + w, o[1]],  # y coordinate of points in upper surface
+         [o[1], o[1], o[1], o[1], o[1]],          # y coordinate of points in outside surface
+         [o[1] + w, o[1] + w, o[1] + w, o[1] + w, o[1] + w]]    # y coordinate of points in inside surface
+    z = [[o[2], o[2], o[2], o[2], o[2]],                        # z coordinate of points in bottom surface
+         [o[2] + h, o[2] + h, o[2] + h, o[2] + h, o[2] + h],    # z coordinate of points in upper surface
+         [o[2], o[2], o[2] + h, o[2] + h, o[2]],                # z coordinate of points in outside surface
+         [o[2], o[2], o[2] + h, o[2] + h, o[2]]]                # z coordinate of points in inside surface
+    return x, y, z
 
 if __name__ == '__main__':
 
