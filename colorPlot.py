@@ -58,7 +58,7 @@ def plotMatrix(ax, x, y, z, data, cmap="jet", cax=None, alpha=0.1):
 def plotCity(ax,City):
     for i in range(len(City[:,1])):
         for j in range(len(City[1,:])):
-            plotBuildingAt(pos=(i, j, City[i,j]/2), alpha=1,  ax=ax)
+            plotBuildingAt(pos=(i, j, City[i,j]/2), alpha=0.04,  ax=ax)
     
 def plotBuildingAt(pos=(0,0,0), alpha=0.1, ax=None):
     # Plotting N building elements at position pos
