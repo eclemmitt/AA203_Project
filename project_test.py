@@ -16,7 +16,7 @@ case = 1
 windDir = 0
 
 # Choose the probablilities of wind affecting the drone
-oneDirProb = 0.5 # out of 1, chance drone gets blown in direction in unidirectional case
+oneDirProb = 0.25 # out of 1, chance drone gets blown in direction in unidirectional case
 # NOTE: Do not let allDirProb exceed 0.25
 allDirProb = 0.1 # out of 1, chance drone gets blown in any of the four directions
 
