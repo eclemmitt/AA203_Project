@@ -172,19 +172,19 @@ def wind(row_index,column_index,height,ep,windy,oneDir,penalty):
     if not windy: # case 1
         direction = 4
     elif windy and oneDir: # case 5
-        if randWind < oneDirProb:
+        if randWind <= oneDirProb:
             direction = windDir
         else:
             direction = 4
     else:
-        if randWind < allDirProb:
-            direction = 0
-        elif randWind < 2*allDirProb:
-            direction = 1
-        elif randWind < 3*allDirProb:
-            direction = 2
-        elif randWind < 4*allDirProb:
-            direction = 3
+        if randWind <= allDirProb:
+            direction = np.random.randint(4)
+        # elif randWind < 2*allDirProb:
+        #     direction = 1
+        # elif randWind < 3*allDirProb:
+        #     direction = 2
+        # elif randWind < 4*allDirProb:
+        #     direction = 3
         else:
             direction = 4
     if direction == 0: #wind coming from right
