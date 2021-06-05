@@ -2,6 +2,7 @@ from colorPlot import *
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from matplotlib.ticker import FormatStrFormatter
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHOOSE YOUR CASE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 1 = no wind, 2 = wind (all directions, moves the drone),
@@ -17,7 +18,7 @@ windDir = 0
 # Choose the probablilities of wind affecting the drone
 oneDirProb = 0.5 # out of 1, chance drone gets blown in direction in unidirectional case
 # NOTE: Do not let allDirProb exceed 0.25
-allDirProb = 0.2 # out of 1, chance drone gets blown in any of the four directions
+allDirProb = 0.1 # out of 1, chance drone gets blown in any of the four directions
 
 # Cost for fighting wind at each step (cases 3 and 5 only) (default value: -2)
 windCost = -2 # make sure this is negative
@@ -34,13 +35,13 @@ numIterations = 50000
 
 # Pick start and end locations (optional)
 pickStartEnd = False # True or False
-start = [11,10]
-end = [6,13]
+start = [7,9]
+end = [1,2]
 
 # Q-learning parameters can be found in the Q-learning section of the code
 
 ### ENVIRONMENT ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-n = 20 #city grid size
+n = 10 #city grid size
 actions = 26 #number of actions 
 
 City = np.zeros([n,n]) #initialize city
@@ -58,8 +59,8 @@ for i in range(n):
         City[i,j] = height[0]
 
 #street locations with height 0   
-r1,r2,r3,r4 = 3,7,12,16 #rows
-c1,c2,c3,c4 = 3,7,12,16 #columns      
+r1,r2,r3,r4 = 2,4,6,8 #rows
+c1,c2,c3,c4 = 2,4,6,8 #columns      
 City[r1,:] = 0
 City[r2,:] = 0
 City[r3,:] = 0
@@ -69,14 +70,14 @@ City[:,c2] = 0
 City[:,c3] = 0
 City[:,c4] = 0
 
+# Plot city as heatmap
 fig, ax = plt.subplots()
 im = ax.imshow(City)
-plt.colorbar(im)
-plt.ylim(-0.5,19.5)
-plt.xlim(-0.5,19.5)
-plt.yticks(np.arange(0,20,1))
-plt.xticks(np.arange(0,20,1))
-
+plt.colorbar(im,label='Building Height')
+plt.ylim(-0.5,n-0.5)
+plt.xlim(-0.5,n-0.5)
+plt.yticks(np.arange(0,n,1))
+plt.xticks(np.arange(0,n,1))
 #plt.grid()
 
 ### CASE CONDITIONS ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -362,9 +363,9 @@ if pickStartEnd:
     s_r,s_c,s_h = start[0],start[1],City[start[0],start[1]]
     d_r,d_c,d_h = end[0],end[1],City[end[0],end[1]]
 
-plt.scatter(s_c, s_r, s=20, c='red', marker='o')
-plt.scatter(d_c, d_r, s=50, c='red', marker='x')
-plt.show()
+plt.scatter(s_r, s_c, s=20, c='red', marker='o',label='Start')
+plt.scatter(d_r, d_c, s=50, c='red', marker='x',label='End')
+plt.legend(); plt.show()
 #%%
 
 ### REWARDS ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -382,7 +383,8 @@ episodes = numIterations # number of Q-learning iterations
 blown = False # initialize windblown value
 
 for i in range(episodes):
-    print(i)
+    if i % 1000 == 0:
+        print(i)
     row_index,column_index,height = s_r,s_c,s_h
     time = 0
     path = []
@@ -415,6 +417,7 @@ for i in range(n):
             policy[i,j,k] = np.argmax(Q[i,j,k,:])
 
 #%% Plot City
+plt.figure()
 ax= plt.axes(projection='3d')
 plotCity(ax,City)
 
@@ -456,7 +459,7 @@ else:
     row_index,column_index,height = s_r,s_c,s_h
     time = 0
     while not terminalState(row_index,column_index,height,time,path,penalty,blown)\
-            and time < 50:
+            and time < maxSteps:
         path.append(np.array([row_index,column_index,height]))
         height_index = int(np.where(building_heights == height)[0])
         action = new_action(row_index,column_index,height_index,1)
@@ -483,7 +486,11 @@ x = np.array(range(n))
 y = np.array(range(n))
 z = np.array(range(11))
 
-fig = plt.figure(figsize=(10,4))
+fig = plt.figure()
 ax = fig.add_axes([0.1, 0.1, 0.7, 0.8], projection='3d')
 
 plotMatrix(ax, x, y, z, policy/13+1, cmap="jet")
+ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+ax.set_zticks([z[0],z[2],z[4],z[6],z[8], z[10]])
+ax.set_zticklabels(['0','100','200','300','400','500'])
