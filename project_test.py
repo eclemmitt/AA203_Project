@@ -145,12 +145,15 @@ def height_reward(row_index,column_index,height,time,path,penalty,blown):
     if any((np.array([row_index,column_index,height]) == x).all() for x in path):
         return -100 + cost
     elif height == d_h and row_index == d_r and column_index == d_c: # delivery reward
-        return 100 + cost
+        return 10000 + cost
     elif row_index == s_r and column_index == s_c and \
         height >= s_h and height <= 400 and time <= 5:
         return -1 + cost
     elif (row_index == d_r and column_index == d_c and \
         (height == 100 and height >= City[row_index,column_index])): # hovering over start or end location
+        return 100 + cost
+    elif (row_index == d_r and column_index == d_c and \
+        (height == 50 and height >= City[row_index,column_index])): # hovering over start or end location
         return 100 + cost
     elif height >= 400 or height <= 100 or height <= City[row_index,column_index]:
         #rewards[row_index,column_index] = -100
@@ -339,7 +342,9 @@ def new_location(row_index,column_index,height,action):
   
 def terminalState(row_index,column_index,height,time,path,penalty,blown):
     if height_reward(row_index,column_index,height,time,path,penalty,blown)== -1 or \
-        height_reward(row_index,column_index,height,time,path,penalty,blown)== (-1 + windCost):
+        height_reward(row_index,column_index,height,time,path,penalty,blown)== (-1 + windCost) or \
+        height_reward(row_index,column_index,height,time,path,penalty,blown)== 100 or \
+        height_reward(row_index,column_index,height,time,path,penalty,blown)== (100 + windCost):
         return False
     else:
         return True
